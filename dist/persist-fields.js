@@ -37,7 +37,8 @@
                 Array.isArray(params) ? params.join('') 
                                       : params.toString())
             .replaceAll('%2C',',')
-            .replaceAll('%3A',':');
+            .replaceAll('%3A',':')
+            .replaceAll('%2F','/');
     }
 
     function distinct(value, index, array) {
@@ -160,7 +161,7 @@
             } else {
                 contents.forEach(x => params.append(storageKey, urlParamsToString(x)));
             }
-            return params.toString();
+            return urlParamsToString(params);
         }
     }
 
@@ -236,25 +237,23 @@
 
     function setValue(scope, child, name, values) {
         if (values !== undefined) {
-            if (isCheckable(child) && !child.hasAttribute('readonly')) {
+            if (isCheckable(child)) {
                 child.checked = values.flatMap(x => x.split(",")).includes(child.value);
             } else {
                 let all = allForName(scope, name);
                 if (all.length === 1) {
-                    if (!child.hasAttribute('readonly')) {
-                        if (child.tagName === 'INPUT' || child.tagName === 'TEXTAREA') {
-                            child.value = values.length == 0 ? '' : values.join(',');
-                        } else if (child.tagName === 'SELECT') {
-                            [...child.options].forEach(x => x.selected = values.flatMap(x => x.split(",")).includes(x.value));
-                        } else {
-                            child.innerText = values.length == 0 ? '' : values.join('');
-                        }
+                    if (child.tagName === 'INPUT' || child.tagName === 'TEXTAREA') {
+                        child.value = values.length == 0 ? '' : values.join(',');
+                    } else if (child.tagName === 'SELECT') {
+                        [...child.options].forEach(x => x.selected = values.flatMap(x => x.split(",")).includes(x.value));
+                    } else {
+                        child.innerText = values.length == 0 ? '' : values.join('');
                     }
                 } else {
                     // multiple fields with the same name -> set value only for the field at the correct position
                     let position = all.indexOf(child);
                     let value = getValueAtPosition(all, values, position);
-                    if (value !== undefined && !child.hasAttribute('readonly')) {
+                    if (value !== undefined) {
                         if (child.tagName === 'INPUT' || child.tagName === 'TEXTAREA') {
                             child.value = value;
                         } else if (child.tagName === 'SELECT') {
@@ -395,6 +394,14 @@
         readStorage(storage, storageKey, currentValues => {
             setValue(scope, field, name, structured ? currentValues[name] : currentValues);
         });
+        // storage modified elsewhere, reflect the change to this field
+        window.addEventListener('htmx:persistFieldsSave', e => {
+            if (e.detail.scope !== scope) {
+                readStorage(storage, storageKey, currentValues => {
+                    setValue(scope, field, name, structured ? currentValues[name] : currentValues);
+                });
+            }
+        });
 
         // mark element as initialized, to prevent multiple initializations, and to store original value
         field.setAttribute("data-persist-fields-initialized", defaultValue(field).join(','));
@@ -402,27 +409,30 @@
         // must process before adding triggers, otherwise Htmx will deinit the element clearing listeners
         htmx.process(field);
 
-        api.getTriggerSpecs(field).forEach(triggerSpec => {
-            let nodeData = api.getInternalData(field);
-            api.addTriggerHandler(field, triggerSpec, nodeData, (elt, evt) => {
-                if (htmx.closest(elt, htmx.config.disableSelector)) {
-                    return;
-                }
-                let newValues = resolve(scope, name, currentValue);
-                readStorage(storage, storageKey, current => {
-                    let cur = structured ? deleteContent(name, current) : undefined;
-                    if (JSON.stringify(newValues) != JSON.stringify(defaults) || field.required) {
-                        if (cur && !Array.isArray(cur)) {
-                            cur[name] = newValues;
-                        } else {
-                            cur = newValues;
-                        }
+        if (!field.hasAttribute('readonly')) {
+            api.getTriggerSpecs(field).forEach(triggerSpec => {
+                let nodeData = api.getInternalData(field);
+                api.addTriggerHandler(field, triggerSpec, nodeData, (elt, evt) => {
+                    if (htmx.closest(elt, htmx.config.disableSelector)) {
+                        return;
                     }
+                    let newValues = resolve(scope, name, currentValue);
+                    readStorage(storage, storageKey, current => {
+                        let cur = structured ? deleteContent(name, current) : undefined;
+                        if (JSON.stringify(newValues) != JSON.stringify(defaults) || field.required) {
+                            if (cur && !Array.isArray(cur)) {
+                                cur[name] = newValues;
+                            } else {
+                                cur = newValues;
+                            }
+                        }
 
-                    saveStorage(storage, cur, storageKey, indexOrCookieOptions);
+                        saveStorage(storage, cur, storageKey, indexOrCookieOptions);
+                        window.dispatchEvent(new CustomEvent('htmx:persistFieldsSave', {detail: {scope: scope, storage: storage}}));
+                    });
                 });
             });
-        });
+        }
     }
 
     let storages = ['session', 'local', 'query', 'fragment', 'cookie', 'http'];
