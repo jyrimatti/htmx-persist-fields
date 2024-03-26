@@ -236,12 +236,11 @@
 
     function setValue(scope, child, name, values) {
         if (values !== undefined) {
-            if (isCheckable(child) && !child.hasAttribute('readonly')) {
+            if (isCheckable(child)) {
                 child.checked = values.flatMap(x => x.split(",")).includes(child.value);
             } else {
                 let all = allForName(scope, name);
                 if (all.length === 1) {
-                    if (!child.hasAttribute('readonly')) {
                         if (child.tagName === 'INPUT' || child.tagName === 'TEXTAREA') {
                             child.value = values.length == 0 ? '' : values.join(',');
                         } else if (child.tagName === 'SELECT') {
@@ -249,12 +248,11 @@
                         } else {
                             child.innerText = values.length == 0 ? '' : values.join('');
                         }
-                    }
                 } else {
                     // multiple fields with the same name -> set value only for the field at the correct position
                     let position = all.indexOf(child);
                     let value = getValueAtPosition(all, values, position);
-                    if (value !== undefined && !child.hasAttribute('readonly')) {
+                    if (value !== undefined) {
                         if (child.tagName === 'INPUT' || child.tagName === 'TEXTAREA') {
                             child.value = value;
                         } else if (child.tagName === 'SELECT') {
@@ -402,6 +400,7 @@
         // must process before adding triggers, otherwise Htmx will deinit the element clearing listeners
         htmx.process(field);
 
+        if (!field.hasAttribute('readonly')) {
         api.getTriggerSpecs(field).forEach(triggerSpec => {
             let nodeData = api.getInternalData(field);
             api.addTriggerHandler(field, triggerSpec, nodeData, (elt, evt) => {
@@ -423,6 +422,7 @@
                 });
             });
         });
+    }
     }
 
     let storages = ['session', 'local', 'query', 'fragment', 'cookie', 'http'];

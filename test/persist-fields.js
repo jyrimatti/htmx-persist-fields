@@ -627,85 +627,53 @@ describe("persist-fields extension", function() {
                         });
                     }
 
-                    describe('single readonly field is not set even if storage has value', function () {
+                    describe('readonly field is not stored', function () {
                         it('input', function () {
-                            setItem(storageKey, {foo: ['bar']});
-                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' value='baz' readonly /></div>")
+                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' value='bar' readonly /></div>")
+                            div.firstElementChild.dispatchEvent(new Event('change'));
+                            expectEqual({}, getItem(storageKey));
+                        });
+                        it('textarea', function () {
+                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><textarea name='foo readonly'>bar</textarea></div>")
+                            div.firstElementChild.dispatchEvent(new Event('change'));
+                            expectEqual({}, getItem(storageKey));
+                        });
+                        it('select', function () {
+                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo' readonly><option value='bar' selected /></select></div>")
+                            div.firstElementChild.dispatchEvent(new Event('change'));
+                            expectEqual({}, getItem(storageKey));
+                        });
+                        ["checkbox", "radio"].forEach(function (type) {
+                            it(type, function () {
+                                var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' type='"+type+"' value='bar' readonly /></div>")
+                                div.firstElementChild.dispatchEvent(new Event('change'));
+                                expectEqual({}, getItem(storageKey));
+                            });
+                        });
+                        delay();
+                    });
+
+                    describe("readonly field is initialized from storage", function () {
+                        it('input', function () {
+                            setItem(storageKey, {foo: ['baz']});
+                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' readonly /></div>")
                             div.firstElementChild.value.should.equal('baz');
                         });
                         it('textarea', function () {
-                            setItem(storageKey, {foo: ['bar']});
-                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><textarea name='foo' readonly>baz</textarea></div>")
+                            setItem(storageKey, {foo: ['baz']});
+                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><textarea name='foo' readonly></textarea></div>")
                             div.firstElementChild.value.should.equal('baz');
                         });
                         it('select', function () {
                             setItem(storageKey, {foo: ['baz']});
-                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo' readonly><option value=''/><option value='baz'/></select></div>")
-                            div.firstElementChild.value.should.equal('');
+                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo' readonly><option value='baz'/></select></div>")
+                            div.firstElementChild.value.should.equal('baz');
                         });
                         ["checkbox", "radio"].forEach(function (type) {
                             it(type, function () {
                                 setItem(storageKey, {foo: ['bar']});
-                                var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' type='"+type+"' value='bar' readonly /></div>")
-                                div.firstElementChild.checked.should.equal(false);
-                            });
-                        });
-                        delay();
-                    });
-
-                    describe('multiple readonly fields are not set even if storage has value', function () {
-                        it('input', function () {
-                            setItem(storageKey, {foo: ['quux'], bar: ['quux']});
-                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' value='baz1' readonly /><input name='bar' value='baz2' readonly /></div>")
-                            div.firstElementChild.value.should.equal('baz1');
-                            div.lastElementChild.value.should.equal('baz2');
-                        });
-                        it('textarea', function () {
-                            setItem(storageKey, {foo: ['quux'], bar: ['quux']});
-                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><textarea name='foo' readonly>baz1</textarea><textarea name='bar' readonly>baz2</textarea></div>")
-                            div.firstElementChild.value.should.equal('baz1');
-                            div.lastElementChild.value.should.equal('baz2');
-                        });
-                        it('select', function () {
-                            setItem(storageKey, {foo: ['baz1'], bar: ['baz2']});
-                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo' readonly><option value=''/><option value='baz1' /></select><select name='bar' readonly><option value=''/><option value='baz2' /></select></div>")
-                            div.firstElementChild.value.should.equal('');
-                            div.lastElementChild.value.should.equal('');
-                        });
-                        ["checkbox", "radio"].forEach(function (type) {
-                            it(type, function () {
-                                setItem(storageKey, {foo: ['baz1'], bar: ['baz2']});
-                                var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' type='"+type+"' value='baz1' readonly /><input name='bar' type='"+type+"' value='baz2' readonly /></div>")
-                                div.firstElementChild.checked.should.equal(false);
-                                div.lastElementChild.checked.should.equal(false);
-                            });
-                        });
-                        delay();
-                    });
-
-                    describe('multi-valued readonly field is not set even if storage has value', function () {
-                        it('input', function () {
-                            setItem(storageKey, {foo: ['bar','quux']});
-                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' value='baz1' readonly /><input name='foo' value='baz2' readonly /></div>")
-                            div.firstElementChild.value.should.equal('baz1');
-                            div.lastElementChild.value.should.equal('baz2');
-                        });
-                        it('textarea', function () {
-                            setItem(storageKey, {foo: ['bar','quux']});
-                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><textarea name='foo' readonly>baz1</textarea><textarea name='foo' readonly>baz2</textarea></div>")
-                            div.firstElementChild.value.should.equal('baz1');
-                            div.lastElementChild.value.should.equal('baz2');
-                        });
-                        it('select', function () {
-                            setItem(storageKey, {foo: ['baz1','baz2']});
-                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo' multiple readonly><option value='baz1' /><option value='baz2' /></select></div>")
-                            div.firstElementChild.value.should.equal('');
-                        });
-                        ["checkbox", "radio"].forEach(function (type) {
-                            it(type, function () {
-                                setItem(storageKey, {foo: ['baz1','baz2']});
-                                var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' type='"+type+"' value='baz1' readonly /><input name='foo' type='"+type+"' value='baz2' readonly /></div>")
-                                div.firstElementChild.checked.should.equal(false);
+                                var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' type='"+type+"' value='bar' readonly /><input name='foo' type='"+type+"' value='baz' /></div>")
+                                div.firstElementChild.checked.should.equal(true);
                                 div.lastElementChild.checked.should.equal(false);
                             });
                         });
