@@ -160,7 +160,7 @@ describe("persist-fields extension", function() {
                         });
                         it('select', function () {
                             var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo'><option value='baz'/></select></div>")
-                            div.firstElementChild.value = 'baz';
+                            div.firstElementChild.firstElementChild.selected = true;
                             div.firstElementChild.dispatchEvent(new Event('change'));
                             expectEqual({foo: ['baz']}, getItem(storageKey));
                         });
@@ -195,8 +195,8 @@ describe("persist-fields extension", function() {
                         });
                         it('select', function () {
                             var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo'><option value='baz1'/></select><select name='bar'><option value='baz2'/></select></div>")
-                            div.firstElementChild.value = 'baz1';
-                            div.lastElementChild.value = 'baz2';
+                            div.firstElementChild.firstElementChild.selected = true;
+                            div.lastElementChild.firstElementChild.selected = true;
                             div.firstElementChild.dispatchEvent(new Event('change'));
                             div.lastElementChild.dispatchEvent(new Event('change'));
                             expectEqual({foo: ['baz1'], bar: ['baz2']}, getItem(storageKey));
@@ -762,7 +762,7 @@ describe("persist-fields extension", function() {
                         });
                         it('select', function () {
                             var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo' disabled><option value='baz'/></select></div>")
-                            div.firstElementChild.value = 'baz';
+                            div.firstElementChild.firstElementChild.selected = true;
                             div.firstElementChild.dispatchEvent(new Event('change'));
                             expectEqual({}, getItem(storageKey));
                         });
@@ -793,7 +793,7 @@ describe("persist-fields extension", function() {
                         });
                         it('select', function () {
                             var div = make("<fieldset disabled hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo'><option value='baz'/></select></fieldset>")
-                            div.firstElementChild.value = 'baz';
+                            div.firstElementChild.firstElementChild.selected = true;
                             div.firstElementChild.dispatchEvent(new Event('change'));
                             expectEqual({}, getItem(storageKey));
                         });
