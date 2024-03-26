@@ -840,6 +840,48 @@ describe("persist-fields extension", function() {
                             expectEqual({foo: ['baz1']}, getItem(storageKey));
                         });
                     });
+
+                    describe("field value is updated when storage is modified in another scope", function () {
+                        it('input', function () {
+                            var div1 = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' /></div>")
+                            var div2 = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' /></div>")
+                            div1.firstElementChild.value = 'baz2';
+
+                            div2.firstElementChild.value.should.not.equal('baz2');
+                            div1.firstElementChild.dispatchEvent(new Event('change'));
+                            div2.firstElementChild.value.should.equal('baz2');
+                        });
+                        it('textarea', function () {
+                            var div1 = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><textarea name='foo'></textarea></div>")
+                            var div2 = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><textarea name='foo'></textarea></div>")
+                            div1.firstElementChild.value = 'baz2';
+
+                            div2.firstElementChild.value.should.not.equal('baz2');
+                            div1.firstElementChild.dispatchEvent(new Event('change'));
+                            div2.firstElementChild.value.should.equal('baz2');
+                        });
+                        it('select', function () {
+                            var div1 = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo'><option value='baz1'/><option value='baz2'/></select></div>")
+                            var div2 = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo'><option value='baz1'/><option value='baz2'/></select></div>")
+                            div1.firstElementChild.lastElementChild.selected = true;
+
+                            div2.firstElementChild.value.should.not.equal('baz2');
+                            div1.firstElementChild.dispatchEvent(new Event('change'));
+                            div2.firstElementChild.value.should.equal('baz2');
+                        });
+                        ["checkbox", "radio"].forEach(function (type) {
+                            it(type, function () {
+                                var div1 = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' type='"+type+"' value='bar' /><input name='foo' type='"+type+"' value='baz' /></div>")
+                                var div2 = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' type='"+type+"' value='bar' /><input name='foo' type='"+type+"' value='baz' /></div>")
+                                div1.firstElementChild.checked = true;
+
+                                div2.firstElementChild.checked.should.not.equal(true);
+                                div1.firstElementChild.dispatchEvent(new Event('change'));
+                                div2.firstElementChild.checked.should.equal(true);
+                            });
+                        });
+                        delay();
+                    });
                 });
             });
         });
