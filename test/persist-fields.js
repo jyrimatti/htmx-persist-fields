@@ -411,6 +411,19 @@ describe("persist-fields extension", function() {
                         delay();
                     });
 
+                    if (storage === 'query' || storage === 'fragment') {
+                        it('certain characters in URL are not percent-escaped ', function () {
+                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' /></div>");
+                            div.firstElementChild.value = '/,:';
+                            div.firstElementChild.dispatchEvent(new Event('change'));
+                            if (indexed) {
+                                expect('/,:').to.deep.equal(window.location.search.substring(1) + window.location.hash.substring(1));
+                            } else {
+                                expect('foo=/,:').to.deep.equal(window.location.search.substring(1) + window.location.hash.substring(1));
+                            }
+                        });
+                    }
+
                     if (indexed) {
                         it('multi-valued remove trailing empty values', function () {
                             var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' /><input name='foo' /></div>");
@@ -453,7 +466,7 @@ describe("persist-fields extension", function() {
                             expectEqual({foo: ['baz']}, getItem(storageKey));
                         });
 
-                        describe("indexed matcers", function () {
+                        describe("indexed matchers", function () {
                             it('matchConstant', function () {
                                 setItem(storageKey, {foo: ['baz1baz2']});
                                 var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' value='baz1' readonly /><input name='foo' /></div>");

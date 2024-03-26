@@ -161,7 +161,7 @@
             } else {
                 contents.forEach(x => params.append(storageKey, urlParamsToString(x)));
             }
-            return params.toString();
+            return urlParamsToString(params);
         }
     }
 
