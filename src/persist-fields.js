@@ -37,7 +37,8 @@
                 Array.isArray(params) ? params.join('') 
                                       : params.toString())
             .replaceAll('%2C',',')
-            .replaceAll('%3A',':');
+            .replaceAll('%3A',':')
+            .replaceAll('%2F','/');
     }
 
     function distinct(value, index, array) {
