@@ -38,7 +38,10 @@ function getWorkArea() {
 }
 
 function clearWorkArea() {
-    getWorkArea().innerHTML = "";
+    var va = getWorkArea();
+    if (va) {
+        va.innerHTML = "";
+    }
 }
 
 function removeWhiteSpace(str) {

@@ -279,6 +279,33 @@ describe("persist-fields extension", function() {
                         delay();
                     });
 
+                    describe("single escaped value is initialized from storage", function () {
+                        it('input', function () {
+                            setItem(storageKey, {foo: ['b a z']});
+                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' /></div>")
+                            div.firstElementChild.value.should.equal('b a z');
+                        });
+                        it('textarea', function () {
+                            setItem(storageKey, {foo: ['b a z']});
+                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><textarea name='foo'></textarea></div>")
+                            div.firstElementChild.value.should.equal('b a z');
+                        });
+                        it('select', function () {
+                            setItem(storageKey, {foo: ['b a z']});
+                            var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo'><option value='b a z'/></select></div>")
+                            div.firstElementChild.value.should.equal('b a z');
+                        });
+                        ["checkbox", "radio"].forEach(function (type) {
+                            it(type, function () {
+                                setItem(storageKey, {foo: ['b a r']});
+                                var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' type='"+type+"' value='b a r' /><input name='foo' type='"+type+"' value='b a z' /></div>")
+                                div.firstElementChild.checked.should.equal(true);
+                                div.lastElementChild.checked.should.equal(false);
+                            });
+                        });
+                        delay();
+                    });
+
                     describe('multiple values are initialized from storage', function () {
                         it('input', function () {
                             setItem(storageKey, {foo: ['baz1'], bar: ['baz2']});
@@ -412,6 +439,7 @@ describe("persist-fields extension", function() {
                     });
 
                     if (storage === 'query' || storage === 'fragment') {
+                        delay();
                         it('certain characters in URL are not percent-escaped ', function () {
                             var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' /></div>");
                             div.firstElementChild.value = '/,:';
@@ -837,6 +865,15 @@ describe("persist-fields extension", function() {
                             div.lastElementChild.value = 'baz2';
                             div.firstElementChild.dispatchEvent(new Event('change'));
                             div.lastElementChild.dispatchEvent(new Event('change'));
+                            expectEqual({foo: ['baz1']}, getItem(storageKey));
+                        });
+                    });
+
+                    describe('hx-ext', function () {
+                        it('works when on the element itself', function () {
+                            var input = make("<input name='foo' hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "' />");
+                            input.value = 'baz1';
+                            input.dispatchEvent(new Event('change'));
                             expectEqual({foo: ['baz1']}, getItem(storageKey));
                         });
                     });

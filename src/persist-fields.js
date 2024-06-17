@@ -101,7 +101,7 @@
 
     function readQueryOrFragment(storageKey, separator, data) {
         if (typeof storageKey === 'number') {
-            var values = data.trim().length == 0 ? [] : data.split(separator);
+            var values = (data.trim().length == 0 ? [] : data.split(separator)).map(decodeURIComponent);
             return storageKey < values.length ? [values[storageKey]] : undefined;
         } else if (typeof storageKey === 'string') {
             let params = new URLSearchParams(data);
