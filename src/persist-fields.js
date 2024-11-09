@@ -31,6 +31,12 @@
         }
     }
 
+    function log(msg) {
+        if (debug && console.log) {
+            console.log(new Date().toISOString(), msg);
+        }
+    }
+
     // Unescape some useless escapes to make url cleaner
     function urlParamsToString(params) {
         return (params === undefined  ? '' :
@@ -114,6 +120,7 @@
 
     // Read the value under 'index' from 'storage'.
     function readStorage(storage, storageKey, callback) {
+        log("readStorage(" + storage + ", " + storageKey + ", " + callback + ")");
         if (storage == 'query') {
             callback(readQueryOrFragment(storageKey, '&', window.location.search.substring(1)));
         } else if (storage == 'fragment') {
@@ -167,6 +174,7 @@
 
     // Save 'contents' to 'storage'.
     function saveStorage(storage, contents, storageKey, cookieOptions) {
+        log("saveStorage(" + storage + ", " + contents + ", " + storageKey + ", " + cookieOptions + ")");
         if (storage === 'query') {
             let data = modifyQueryOrFragment(storageKey, '&', window.location.search, contents);
             if (data !== window.location.search.substring(1)) {
@@ -220,6 +228,7 @@
 
     // Restore the default values for all fields under 'persistScope'
     function clear(storage, persistScope, storageKey) {
+        log("clear(" + storage + ", " + persistScope + ", " + storageKey + ")");
         readStorage(storage, storageKey, () => {
             if (persistScope) {
                 persistScope.querySelectorAll('[data-persist-fields-initialized]').forEach(x => {
@@ -236,6 +245,7 @@
     }
 
     function setValue(scope, child, name, values) {
+        log("setValue(" + scope + ", " + child + ", " + name + ", " + values + ")");
         if (values !== undefined) {
             if (isCheckable(child)) {
                 child.checked = values.flatMap(x => x.split(",")).includes(child.value);
@@ -353,6 +363,7 @@
         for (let i in fieldMatchers) {
             let ret = fieldMatchers[i](remaining, field);
             if (ret !== undefined) {
+                log("Matched " + ret[0] + " of " + remaining + " in " + (field.id || field.name) +  " with matcher " + fieldMatchers[i].name);
                 return ret;
             }
         }
