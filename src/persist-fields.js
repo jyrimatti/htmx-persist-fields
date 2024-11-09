@@ -468,10 +468,14 @@
         // have to read defaults on initialization since browsers change them when value is changed programmatically
         let defaults = resolve(scope, name, defaultValue);
 
-        // initialize the field with the value from storage
-        readStorage(storage, storageKey, currentValues => {
-            setValue(scope, field, name, structured ? currentValues[name] : currentValues);
-        });
+        // initialize the field with the value from storage.
+        if (field.hasAttribute('readonly') && !isCheckable(field) && field.defaultValue) {
+            // don't try to initialize read-only non-checkable fields with a default value
+        } else {
+            readStorage(storage, storageKey, currentValues => {
+                setValue(scope, field, name, structured ? currentValues[name] : currentValues);
+            });
+        }
         // storage modified elsewhere, reflect the change to this field
         window.addEventListener('htmx:persistFieldsSave', e => {
             if (e.detail.scope !== scope) {
