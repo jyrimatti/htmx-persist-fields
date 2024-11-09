@@ -40,7 +40,7 @@
     // Unescape some useless escapes to make url cleaner
     function urlParamsToString(params) {
         return (params === undefined  ? '' :
-                Array.isArray(params) ? params.join('') 
+                Array.isArray(params) ? params.join('')
                                       : params.toString())
             .replaceAll('%2C',',')
             .replaceAll('%3A',':')
@@ -253,11 +253,11 @@
                 let all = allForName(scope, name);
                 if (all.length === 1) {
                     if (child.tagName === 'INPUT' || child.tagName === 'TEXTAREA') {
-                        child.value = values.length == 0 ? '' : values.join(',');
+                        child.value = values.join('');
                     } else if (child.tagName === 'SELECT') {
                         [...child.options].forEach(x => x.selected = values.flatMap(x => x.split(",")).includes(x.value));
                     } else {
-                        child.innerText = values.length == 0 ? '' : values.join('');
+                        child.innerText = values.join('');
                     }
                 } else {
                     // multiple fields with the same name -> set value only for the field at the correct position
@@ -317,7 +317,7 @@
 
     function matchDateTime(remaining, field) {
         if (field.getAttribute('type') === 'datetime-local') {
-            let matchResult = remaining.match('^[0-9]{1,4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}');
+            let matchResult = remaining.match(/^[0-9]{1,4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}/);
             if (matchResult !== null) {
                 let currentPart = matchResult[0];
                 return [currentPart, remaining.substring(currentPart.length)];
@@ -328,7 +328,7 @@
 
     function matchDate(remaining, field) {
         if (field.getAttribute('type') === 'date') {
-            let matchResult = remaining.match('^[0-9]{1,4}-[0-9]{2}-[0-9]{2}');
+            let matchResult = remaining.match(/^[0-9]{1,4}-[0-9]{2}-[0-9]{2}/);
             if (matchResult !== null) {
                 let currentPart = matchResult[0];
                 return [currentPart, remaining.substring(currentPart.length)];
@@ -340,7 +340,7 @@
     function matchTime(remaining, field) {
         if (field.getAttribute('type') === 'time') {
             // time
-            let matchResult = remaining.match('^[0-9]{2}:[0-9]{2}(:[0-9]{2})?');
+            let matchResult = remaining.match(/^[0-9]{2}:[0-9]{2}(:[0-9]{2})?/);
             if (matchResult !== null) {
                 let currentPart = matchResult[0];
                 return [currentPart, remaining.substring(currentPart.length)];
@@ -460,6 +460,7 @@
 
     var api;
     var fieldMatchers;
+    var debug = false;
 
     htmx.defineExtension('persist-fields', {
         _ext_persist_fields: true,
