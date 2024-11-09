@@ -81,10 +81,17 @@
         let all = allForName(scope, name).filter(x => !x.closest(':disabled'));
         let checkables = all.filter(isCheckable).filter(x => f(x)[0]).map(x => x.value).join(",");
         let others = all.filter(x => !isCheckable(x));
-        while (others.length > 0 && (JSON.stringify(f(others[others.length-1])) === '[""]' || others[others.length-1].hasAttribute('readonly') && !others[others.length-1].hasAttribute('required'))) {
-            others.splice(-1, 1); // remove last
+        for (let i = others.length-1; i >= 0; i--) {
+            if (JSON.stringify(f(others[i])) === '[""]' || // values is empty, or...
+                    others[i].hasAttribute('readonly') &&
+                    !others[i].hasAttribute('required') && (
+                        i > 0 && JSON.stringify(f(others[i-1])) === '[""]' || // readonly-optional and previous value is empty, or...
+                        i == others.length-1) // readonly-optional as last element
+                    ) {
+                others.splice(i, 1);
+            }
         }
-        return [checkables].filter(x => x != '').concat(others.flatMap(f));
+        return [checkables].filter(x => x != '').concat(others.map(f));
     }
 
     // Returns all input descendants (including self) of the given element, which are not ignored by hx-ext="ignore:persist-fields".
@@ -166,7 +173,7 @@
             } else if (contents.length == 0) {
                 params.append(storageKey, "");
             } else {
-                contents.forEach(x => params.append(storageKey, urlParamsToString(x)));
+                contents.forEach(x => Array.isArray(x) ? x.forEach(y => params.append(storageKey, urlParamsToString(y))) : params.append(storageKey, urlParamsToString(x)));
             }
             return urlParamsToString(params);
         }
@@ -244,6 +251,24 @@
         });
     }
 
+    function doSelect(child, val) {
+        child.selectedIndex = -1;
+        [...child.options].filter(x => x.value).forEach(x => {
+            let newval = val.includes(x.value);
+            if (newval && !child.multiple && [...child.selectedOptions].filter(x => x.value).length > 0) {
+                child.multiple = true;
+            }
+            if (x.selected !== newval) {
+                log("Changing " + x.value + " of " + (child.id || child.name) + " to " + newval);
+                x.selected = newval;
+            }
+        });
+        if ([...child.selectedOptions].filter(x => x.value).length == 0) {
+            log("Selecting defaults of " + (child.id || child.name));
+            [...child.selectedOptions].filter(x => x.defaultSelected).filter(o => !o.selected).forEach(o => o.selected = true);
+        }
+    }
+
     function setValue(scope, child, name, values) {
         log("setValue(" + scope + ", " + child + ", " + name + ", " + values + ")");
         if (values !== undefined) {
@@ -255,7 +280,8 @@
                     if (child.tagName === 'INPUT' || child.tagName === 'TEXTAREA') {
                         child.value = values.join('');
                     } else if (child.tagName === 'SELECT') {
-                        [...child.options].forEach(x => x.selected = values.flatMap(x => x.split(",")).includes(x.value));
+                        let val = (Array.isArray(values) ? values : [values]).flatMap(x => x.split(","));
+                        doSelect(child, val);
                     } else {
                         child.innerText = values.join('');
                     }
@@ -267,7 +293,8 @@
                         if (child.tagName === 'INPUT' || child.tagName === 'TEXTAREA') {
                             child.value = value;
                         } else if (child.tagName === 'SELECT') {
-                            [...child.options].forEach(x => x.selected = value === x.value);
+                            let val = Array.isArray(value) ? value : [value];
+                            doSelect(child, val);
                         } else {
                             child.innerText = value;
                         }
@@ -363,6 +390,32 @@
         return undefined;
     }
 
+    function doMatchMultiselect(field, remaining, results) {
+        let found = [...field.options].map(x => x.value)
+                                      .filter(x => x !== '')
+                                      .filter(x => remaining.startsWith(x))
+                                      .sort((a, b) => b.length - a.length)
+                                      .find(x => true);
+        if (found) {
+            let rem = remaining.substring(found.length);
+            if (rem.startsWith(',')) {
+                return doMatchMultiselect(field, rem.substring(1), [...results, found]);
+            }
+            return [[...results, found], rem];
+        }
+        return [results, remaining];
+    }
+
+    function matchMultiselect(remaining, field) {
+        if (field.tagName === 'SELECT' && field.multiple) {
+            let results = doMatchMultiselect(field, remaining, []);
+            if (results[0].length > 0) {
+                return results;
+            }
+        }
+        return undefined;
+    }
+
     function matchRest(remaining, field) {
         if ((field.tagName === 'TEXTAREA' || field.tagName === 'INPUT' && ['text', 'hidden'].includes(field.type)) &&
             (!field.hasAttribute('minlength') || parseInt(field.getAttribute('minlength')) <= remaining.length) &&
@@ -429,7 +482,7 @@
         });
 
         // mark element as initialized, to prevent multiple initializations, and to store original value
-        field.setAttribute("data-persist-fields-initialized", defaultValue(field).join(','));
+        field.setAttribute("data-persist-fields-initialized", defaultValue(field));
 
         // must process before adding triggers, otherwise Htmx will deinit the element clearing listeners
         htmx.process(field);
@@ -446,7 +499,7 @@
                         let cur = structured ? deleteContent(name, current) : undefined;
                         if (JSON.stringify(newValues) != JSON.stringify(defaults) || field.required) {
                             if (cur && !Array.isArray(cur)) {
-                                cur[name] = newValues;
+                                cur[name] = structured ? newValues.flat() : newValues;
                             } else {
                                 cur = newValues;
                             }
@@ -473,7 +526,7 @@
 
         init: function (internalAPI) {
             api = internalAPI;
-            fieldMatchers = [matchConstant, matchConstantLength, matchPattern, matchDateTime, matchDate, matchTime, matchSelect, matchRest];
+            fieldMatchers = [matchConstant, matchConstantLength, matchPattern, matchDateTime, matchDate, matchTime, matchMultiselect, matchSelect, matchRest];
         },
         
         onEvent: function (name, evt) {

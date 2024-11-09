@@ -45,9 +45,9 @@ describe("persist-fields extension", function() {
                 return; // indexed applies only to query/fragment
             }
 
-            const expectEqual = (expected, value) => {
+            const expectEqual = (expected, value, multiselect) => {
                 const vals = Object.values(expected);
-                expect(indexed ? vals.map(x => x.join('')) : expected).to.deep.equal(value);
+                expect(indexed ? vals.map(x => x.join(multiselect ? ',' : '')) : expected).to.deep.equal(value);
             };
 
             beforeEach(function () {
@@ -237,8 +237,7 @@ describe("persist-fields extension", function() {
                             div.firstElementChild.firstElementChild.selected = true;
                             div.firstElementChild.lastElementChild.selected = true;
                             div.firstElementChild.dispatchEvent(new Event('change'));
-                            div.lastElementChild.dispatchEvent(new Event('change'));
-                            expectEqual({foo: ['baz1','baz2']}, getItem(storageKey));
+                            expectEqual({foo: ['baz1','baz2']}, getItem(storageKey), true);
                         });
                         ["checkbox", "radio"].forEach(function (type) {
                             it(type, function () {
@@ -550,6 +549,13 @@ describe("persist-fields extension", function() {
                                 var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select name='foo'><option value='baz1'></option></select><input name='foo' /></div>");
                                 div.firstElementChild.value.should.equal('baz1');
                                 div.lastElementChild.value.should.equal('baz2');
+                            });
+
+                            it('indexed-matchMultiSelect', function () {
+                                setItem(storageKey, {foo: ['baz1,baz2baz3']});
+                                var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><select multiple name='foo'><option value='baz1'></option><option value='baz2'></option></select><input name='foo' /></div>");
+                                [...div.firstElementChild.selectedOptions].map(x => x.value).should.deep.equal(['baz1','baz2']);
+                                div.lastElementChild.value.should.equal('baz3');
                             });
                         });
                     }
