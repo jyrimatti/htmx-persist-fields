@@ -294,14 +294,22 @@
         }
         return undefined;
     }
+
+    function doMatchPattern(pattern, remaining, results, maxResults) {
+        let matchResult = remaining.match(pattern);
+        if (results.length < maxResults && matchResult !== null && matchResult[0].length > 0) {
+            let currentPart = matchResult.length > 1 ? matchResult[1] : matchResult[0];
+            return doMatchPattern(pattern, remaining.substring(matchResult[0].length), [...results, currentPart], maxResults);
+        }
+        return [results, remaining];
+    }
     
     function matchPattern(remaining, field) {
         if (field.hasAttribute('pattern')) {
             let pattern = field.getAttribute('pattern');
-            let matchResult = remaining.match(pattern.startsWith('^') ? pattern : '^' + pattern);
-            if (matchResult !== null) {
-                let currentPart = matchResult.length > 1 ? matchResult[1] : matchResult[0];
-                return [currentPart, remaining.substring(currentPart.length)];
+            let results = doMatchPattern(new RegExp(pattern.startsWith('^') ? pattern : '^' + pattern), remaining, [], 1);
+            if (results[0].length > 0) {
+                return results[0].length >= 1 ? [results[0][0], results[1]] : results;
             }
         }
         return undefined;
