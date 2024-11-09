@@ -363,8 +363,14 @@
         return undefined;
     }
 
-    function matchAll(remaining, field) {
-        return [remaining, ''];
+    function matchRest(remaining, field) {
+        if ((field.tagName === 'TEXTAREA' || field.tagName === 'INPUT' && ['text', 'hidden'].includes(field.type)) &&
+            (!field.hasAttribute('minlength') || parseInt(field.getAttribute('minlength')) <= remaining.length) &&
+            (!field.hasAttribute('maxlength') || parseInt(field.getAttribute('maxlength')) >= remaining.length)) {
+        
+            return [remaining, ''];
+        }
+        return undefined;
     }
 
     function matchField(remaining, field) {
@@ -375,7 +381,7 @@
                 return ret;
             }
         }
-        return undefined;
+        return [undefined, remaining];
     }
 
     function getValueAtPosition(all, values, position) {
@@ -467,7 +473,7 @@
 
         init: function (internalAPI) {
             api = internalAPI;
-            fieldMatchers = [matchConstant, matchConstantLength, matchPattern, matchDateTime, matchDate, matchTime, matchSelect, matchAll];
+            fieldMatchers = [matchConstant, matchConstantLength, matchPattern, matchDateTime, matchDate, matchTime, matchSelect, matchRest];
         },
         
         onEvent: function (name, evt) {
