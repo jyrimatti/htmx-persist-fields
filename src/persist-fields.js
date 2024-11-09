@@ -132,7 +132,7 @@
                                  .map(x => {
                                     let parts = x.split("=");
                                     let ret = {};
-                                    ret[parts[0]] = parts[1] === undefined ? undefined : parts[1].split(',').map(decodeURIComponent);
+                                    ret[parts[0]] = parts[1] === undefined ? undefined : decodeURIComponent(parts[1]).split(',');
                                     return ret;
                                  }).reduce(((r, c) => Object.assign(r, c)), {});
             callback(storageKey ? (params[storageKey] ? params[storageKey] : undefined) : document.cookie.length == 0 ? undefined : params);
@@ -187,7 +187,7 @@
             }
         } else if (storage === 'cookie') {
             if (contents) {
-                document.cookie = storageKey + '=' + contents.map(encodeURIComponent).join(',') + ';' + cookieOptions;
+                document.cookie = storageKey + '=' + encodeURIComponent(contents.join(',')) + ';' + cookieOptions;
             } else {
                 document.cookie = storageKey + '=;max-age=0'; // delete cookie
             }

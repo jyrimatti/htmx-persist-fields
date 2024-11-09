@@ -101,12 +101,13 @@ describe("persist-fields extension", function() {
                 } else if (storage === 'cookie') {
                     return document.cookie
                                 .split("; ")
-                                .filter(x => x !== '')
-                                .reduce((acc,x) => {
+                                .filter(x => x.length > 0)
+                                .map(x => {
                                     let parts = x.split("=");
-                                    acc[parts[0]] = parts[1].split(',').map(decodeURIComponent);
-                                    return acc;
-                                }, {});
+                                    let ret = {};
+                                    ret[parts[0]] = parts[1] === undefined ? undefined : decodeURIComponent(parts[1]).split(',');
+                                    return ret;
+                                 }).reduce(((r, c) => Object.assign(r, c)), {});
                 } else if (storage === 'http') {
                     return JSON.parse(stor);
                 }
@@ -121,7 +122,7 @@ describe("persist-fields extension", function() {
                     const fragment = indexed ? Object.values(value).map(x => x.join(indexedSeparator || '')).join('#') : objectToParams(value);
                     history.replaceState(null, null, window.location.protocol + '//' + window.location.host + window.location.pathname + window.location.search + '#' + fragment);
                 } else if (storage === 'cookie') {
-                    Object.keys(value).map(key => key + '=' + value[key].map(encodeURIComponent).join(",")).forEach(x => {
+                    Object.keys(value).map(key => key + '=' + encodeURIComponent(value[key].join(","))).forEach(x => {
                         document.cookie = x;
                     });
                 } else if (storage === 'http') {
@@ -214,7 +215,7 @@ describe("persist-fields extension", function() {
                         delay();
                     });
 
-                    describe('multi-valued is is written to storage', function () {
+                    describe('multi-valued is written to storage', function () {
                         it('input', function () {
                             var div = make("<div hx-ext='persist-fields' persist-fields-"+storage+"='" + storageKey + "'><input name='foo' /><input name='foo' /></div>")
                             div.firstElementChild.value = 'baz1';
