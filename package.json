@@ -1,6 +1,6 @@
 {
   "name": "htmx-persist-fields",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Htmx extension to persist fields to different storages",
   "author": "Jyri-Matti Lähteenmäki <jyri-matti@lahteenmaki.net>",
   "keywords": [

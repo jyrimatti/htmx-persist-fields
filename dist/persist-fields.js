@@ -31,10 +31,16 @@
         }
     }
 
+    function log(msg) {
+        if (debug && console.log) {
+            console.log(new Date().toISOString(), msg);
+        }
+    }
+
     // Unescape some useless escapes to make url cleaner
     function urlParamsToString(params) {
         return (params === undefined  ? '' :
-                Array.isArray(params) ? params.join('') 
+                Array.isArray(params) ? params.join('')
                                       : params.toString())
             .replaceAll('%2C',',')
             .replaceAll('%3A',':')
@@ -75,10 +81,17 @@
         let all = allForName(scope, name).filter(x => !x.closest(':disabled'));
         let checkables = all.filter(isCheckable).filter(x => f(x)[0]).map(x => x.value).join(",");
         let others = all.filter(x => !isCheckable(x));
-        while (others.length > 0 && (JSON.stringify(f(others[others.length-1])) === '[""]' || others[others.length-1].hasAttribute('readonly') && !others[others.length-1].hasAttribute('required'))) {
-            others.splice(-1, 1); // remove last
+        for (let i = others.length-1; i >= 0; i--) {
+            if (JSON.stringify(f(others[i])) === '[""]' || // values is empty, or...
+                    others[i].hasAttribute('readonly') &&
+                    !others[i].hasAttribute('required') && (
+                        i > 0 && JSON.stringify(f(others[i-1])) === '[""]' || // readonly-optional and previous value is empty, or...
+                        i == others.length-1) // readonly-optional as last element
+                    ) {
+                others.splice(i, 1);
+            }
         }
-        return [checkables].filter(x => x != '').concat(others.flatMap(f));
+        return [checkables].filter(x => x != '').concat(others.map(f));
     }
 
     // Returns all input descendants (including self) of the given element, which are not ignored by hx-ext="ignore:persist-fields".
@@ -114,6 +127,7 @@
 
     // Read the value under 'index' from 'storage'.
     function readStorage(storage, storageKey, callback) {
+        log("readStorage(" + storage + ", " + storageKey + ", " + callback + ")");
         if (storage == 'query') {
             callback(readQueryOrFragment(storageKey, '&', window.location.search.substring(1)));
         } else if (storage == 'fragment') {
@@ -125,7 +139,7 @@
                                  .map(x => {
                                     let parts = x.split("=");
                                     let ret = {};
-                                    ret[parts[0]] = parts[1] === undefined ? undefined : parts[1].split(',').map(decodeURIComponent);
+                                    ret[parts[0]] = parts[1] === undefined ? undefined : decodeURIComponent(parts[1]).split(',');
                                     return ret;
                                  }).reduce(((r, c) => Object.assign(r, c)), {});
             callback(storageKey ? (params[storageKey] ? params[storageKey] : undefined) : document.cookie.length == 0 ? undefined : params);
@@ -159,7 +173,7 @@
             } else if (contents.length == 0) {
                 params.append(storageKey, "");
             } else {
-                contents.forEach(x => params.append(storageKey, urlParamsToString(x)));
+                contents.forEach(x => Array.isArray(x) ? x.forEach(y => params.append(storageKey, urlParamsToString(y))) : params.append(storageKey, urlParamsToString(x)));
             }
             return urlParamsToString(params);
         }
@@ -167,6 +181,7 @@
 
     // Save 'contents' to 'storage'.
     function saveStorage(storage, contents, storageKey, cookieOptions) {
+        log("saveStorage(" + storage + ", " + contents + ", " + storageKey + ", " + cookieOptions + ")");
         if (storage === 'query') {
             let data = modifyQueryOrFragment(storageKey, '&', window.location.search, contents);
             if (data !== window.location.search.substring(1)) {
@@ -179,7 +194,7 @@
             }
         } else if (storage === 'cookie') {
             if (contents) {
-                document.cookie = storageKey + '=' + contents.map(encodeURIComponent).join(',') + ';' + cookieOptions;
+                document.cookie = storageKey + '=' + encodeURIComponent(contents.join(',')) + ';' + cookieOptions;
             } else {
                 document.cookie = storageKey + '=;max-age=0'; // delete cookie
             }
@@ -220,6 +235,7 @@
 
     // Restore the default values for all fields under 'persistScope'
     function clear(storage, persistScope, storageKey) {
+        log("clear(" + storage + ", " + persistScope + ", " + storageKey + ")");
         readStorage(storage, storageKey, () => {
             if (persistScope) {
                 persistScope.querySelectorAll('[data-persist-fields-initialized]').forEach(x => {
@@ -235,7 +251,26 @@
         });
     }
 
+    function doSelect(child, val) {
+        child.selectedIndex = -1;
+        [...child.options].filter(x => x.value).forEach(x => {
+            let newval = val.includes(x.value);
+            if (newval && !child.multiple && [...child.selectedOptions].filter(x => x.value).length > 0) {
+                child.multiple = true;
+            }
+            if (x.selected !== newval) {
+                log("Changing " + x.value + " of " + (child.id || child.name) + " to " + newval);
+                x.selected = newval;
+            }
+        });
+        if ([...child.selectedOptions].filter(x => x.value).length == 0) {
+            log("Selecting defaults of " + (child.id || child.name));
+            [...child.selectedOptions].filter(x => x.defaultSelected).filter(o => !o.selected).forEach(o => o.selected = true);
+        }
+    }
+
     function setValue(scope, child, name, values) {
+        log("setValue(" + scope + ", " + child + ", " + name + ", " + values + ")");
         if (values !== undefined) {
             if (isCheckable(child)) {
                 child.checked = values.flatMap(x => x.split(",")).includes(child.value);
@@ -243,11 +278,12 @@
                 let all = allForName(scope, name);
                 if (all.length === 1) {
                     if (child.tagName === 'INPUT' || child.tagName === 'TEXTAREA') {
-                        child.value = values.length == 0 ? '' : values.join(',');
+                        child.value = values.join('');
                     } else if (child.tagName === 'SELECT') {
-                        [...child.options].forEach(x => x.selected = values.flatMap(x => x.split(",")).includes(x.value));
+                        let val = (Array.isArray(values) ? values : [values]).flatMap(x => x.split(","));
+                        doSelect(child, val);
                     } else {
-                        child.innerText = values.length == 0 ? '' : values.join('');
+                        child.innerText = values.join('');
                     }
                 } else {
                     // multiple fields with the same name -> set value only for the field at the correct position
@@ -257,7 +293,8 @@
                         if (child.tagName === 'INPUT' || child.tagName === 'TEXTAREA') {
                             child.value = value;
                         } else if (child.tagName === 'SELECT') {
-                            [...child.options].forEach(x => x.selected = value === x.value);
+                            let val = Array.isArray(value) ? value : [value];
+                            doSelect(child, val);
                         } else {
                             child.innerText = value;
                         }
@@ -284,14 +321,22 @@
         }
         return undefined;
     }
+
+    function doMatchPattern(pattern, remaining, results, maxResults) {
+        let matchResult = remaining.match(pattern);
+        if (results.length < maxResults && matchResult !== null && matchResult[0].length > 0) {
+            let currentPart = matchResult.length > 1 ? matchResult[1] : matchResult[0];
+            return doMatchPattern(pattern, remaining.substring(matchResult[0].length), [...results, currentPart], maxResults);
+        }
+        return [results, remaining];
+    }
     
     function matchPattern(remaining, field) {
         if (field.hasAttribute('pattern')) {
             let pattern = field.getAttribute('pattern');
-            let matchResult = remaining.match(pattern.startsWith('^') ? pattern : '^' + pattern);
-            if (matchResult !== null) {
-                let currentPart = matchResult.length > 1 ? matchResult[1] : matchResult[0];
-                return [currentPart, remaining.substring(currentPart.length)];
+            let results = doMatchPattern(new RegExp(pattern.startsWith('^') ? pattern : '^' + pattern), remaining, [], 1);
+            if (results[0].length > 0) {
+                return results[0].length >= 1 ? [results[0][0], results[1]] : results;
             }
         }
         return undefined;
@@ -299,7 +344,7 @@
 
     function matchDateTime(remaining, field) {
         if (field.getAttribute('type') === 'datetime-local') {
-            let matchResult = remaining.match('^[0-9]{1,4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}');
+            let matchResult = remaining.match(/^[0-9]{1,4}-[0-9]{2}-[0-9]{2}[T ][0-9]{2}:[0-9]{2}/);
             if (matchResult !== null) {
                 let currentPart = matchResult[0];
                 return [currentPart, remaining.substring(currentPart.length)];
@@ -310,7 +355,7 @@
 
     function matchDate(remaining, field) {
         if (field.getAttribute('type') === 'date') {
-            let matchResult = remaining.match('^[0-9]{1,4}-[0-9]{2}-[0-9]{2}');
+            let matchResult = remaining.match(/^[0-9]{1,4}-[0-9]{2}-[0-9]{2}/);
             if (matchResult !== null) {
                 let currentPart = matchResult[0];
                 return [currentPart, remaining.substring(currentPart.length)];
@@ -322,7 +367,7 @@
     function matchTime(remaining, field) {
         if (field.getAttribute('type') === 'time') {
             // time
-            let matchResult = remaining.match('^[0-9]{2}:[0-9]{2}(:[0-9]{2})?');
+            let matchResult = remaining.match(/^[0-9]{2}:[0-9]{2}(:[0-9]{2})?/);
             if (matchResult !== null) {
                 let currentPart = matchResult[0];
                 return [currentPart, remaining.substring(currentPart.length)];
@@ -345,18 +390,51 @@
         return undefined;
     }
 
-    function matchAll(remaining, field) {
-        return [remaining, ''];
+    function doMatchMultiselect(field, remaining, results) {
+        let found = [...field.options].map(x => x.value)
+                                      .filter(x => x !== '')
+                                      .filter(x => remaining.startsWith(x))
+                                      .sort((a, b) => b.length - a.length)
+                                      .find(x => true);
+        if (found) {
+            let rem = remaining.substring(found.length);
+            if (rem.startsWith(',')) {
+                return doMatchMultiselect(field, rem.substring(1), [...results, found]);
+            }
+            return [[...results, found], rem];
+        }
+        return [results, remaining];
+    }
+
+    function matchMultiselect(remaining, field) {
+        if (field.tagName === 'SELECT' && field.multiple) {
+            let results = doMatchMultiselect(field, remaining, []);
+            if (results[0].length > 0) {
+                return results;
+            }
+        }
+        return undefined;
+    }
+
+    function matchRest(remaining, field) {
+        if ((field.tagName === 'TEXTAREA' || field.tagName === 'INPUT' && ['text', 'hidden'].includes(field.type)) &&
+            (!field.hasAttribute('minlength') || parseInt(field.getAttribute('minlength')) <= remaining.length) &&
+            (!field.hasAttribute('maxlength') || parseInt(field.getAttribute('maxlength')) >= remaining.length)) {
+        
+            return [remaining, ''];
+        }
+        return undefined;
     }
 
     function matchField(remaining, field) {
         for (let i in fieldMatchers) {
             let ret = fieldMatchers[i](remaining, field);
             if (ret !== undefined) {
+                log("Matched " + ret[0] + " of " + remaining + " in " + (field.id || field.name) +  " with matcher " + fieldMatchers[i].name);
                 return ret;
             }
         }
-        return undefined;
+        return [undefined, remaining];
     }
 
     function getValueAtPosition(all, values, position) {
@@ -390,10 +468,14 @@
         // have to read defaults on initialization since browsers change them when value is changed programmatically
         let defaults = resolve(scope, name, defaultValue);
 
-        // initialize the field with the value from storage
-        readStorage(storage, storageKey, currentValues => {
-            setValue(scope, field, name, structured ? currentValues[name] : currentValues);
-        });
+        // initialize the field with the value from storage.
+        if (field.hasAttribute('readonly') && !isCheckable(field) && field.defaultValue) {
+            // don't try to initialize read-only non-checkable fields with a default value
+        } else {
+            readStorage(storage, storageKey, currentValues => {
+                setValue(scope, field, name, structured ? currentValues[name] : currentValues);
+            });
+        }
         // storage modified elsewhere, reflect the change to this field
         window.addEventListener('htmx:persistFieldsSave', e => {
             if (e.detail.scope !== scope) {
@@ -404,7 +486,7 @@
         });
 
         // mark element as initialized, to prevent multiple initializations, and to store original value
-        field.setAttribute("data-persist-fields-initialized", defaultValue(field).join(','));
+        field.setAttribute("data-persist-fields-initialized", defaultValue(field));
 
         // must process before adding triggers, otherwise Htmx will deinit the element clearing listeners
         htmx.process(field);
@@ -421,7 +503,7 @@
                         let cur = structured ? deleteContent(name, current) : undefined;
                         if (JSON.stringify(newValues) != JSON.stringify(defaults) || field.required) {
                             if (cur && !Array.isArray(cur)) {
-                                cur[name] = newValues;
+                                cur[name] = structured ? newValues.flat() : newValues;
                             } else {
                                 cur = newValues;
                             }
@@ -441,13 +523,14 @@
 
     var api;
     var fieldMatchers;
+    var debug = false;
 
     htmx.defineExtension('persist-fields', {
         _ext_persist_fields: true,
 
         init: function (internalAPI) {
             api = internalAPI;
-            fieldMatchers = [matchConstant, matchConstantLength, matchPattern, matchDateTime, matchDate, matchTime, matchSelect, matchAll];
+            fieldMatchers = [matchConstant, matchConstantLength, matchPattern, matchDateTime, matchDate, matchTime, matchMultiselect, matchSelect, matchRest];
         },
         
         onEvent: function (name, evt) {
